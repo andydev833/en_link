@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReferralStore } from '../../store/referralStore';
 import { usePartnerStore } from '../../store/partnerStore';
-import { useMenuStore } from '../../store/menuStore';
 import { AdminLayout } from '../../components/layout';
 import { StatusBadge, ToastContainer, Modal, ConfirmDialog } from '../../components/ui';
 import { useToast } from '../../hooks/useToast';
 import { ArrowLeft } from 'lucide-react';
-import type { ExcludeReason, ReferralStatus } from '../../types';
+import type { ExcludeReason } from '../../types';
 
 const EXCLUDE_REASONS: { value: ExcludeReason; label: string }[] = [
   { value: 'existing_customer', label: '既存顧客' },
@@ -39,12 +38,10 @@ export default function AdminReferralDetail() {
     markConsulted,
   } = useReferralStore();
   const { partners, getBankAccount } = usePartnerStore();
-  const { menus } = useMenuStore();
   const { toasts, addToast, removeToast } = useToast();
 
   const referral = referrals.find((r) => r.id === id);
   const partner = referral?.partnerId ? partners.find((p) => p.id === referral.partnerId) : null;
-  const menu = referral ? menus.find((m) => m.id === referral.menuId) : null;
   const bankAccount = partner ? getBankAccount(partner.id) : null;
 
   const [contractAmountInput, setContractAmountInput] = useState(

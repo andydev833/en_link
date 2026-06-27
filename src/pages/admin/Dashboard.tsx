@@ -44,23 +44,6 @@ export default function AdminDashboard() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  const STATUS_MAP: Record<string, string> = {
-    pending: '審査中',
-    approved: '承認済み',
-    rejected: '否認',
-    suspended: '停止中',
-    inquiry: '問い合わせ',
-    scheduling: '相談調整中',
-    scheduled: '相談予定',
-    consulted: '相談実施済み',
-    paid: '決済完了',
-    approved_r: '承認済み',
-    reward_confirmed: '報酬確定',
-    reward_paid: '支払済み',
-    lost: '失注',
-    excluded: '対象外',
-  };
-
   return (
     <AdminLayout title="ダッシュボード">
       {/* 要対応アラート */}

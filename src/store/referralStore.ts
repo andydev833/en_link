@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Referral, ReferralStatus, RewardStatus, ExcludeReason } from '../types';
+import type { Referral, ReferralStatus, ExcludeReason } from '../types';
 import { DUMMY_REFERRALS } from '../data/dummyData';
 import { useMenuStore } from './menuStore';
 
@@ -57,11 +57,11 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  contractAmount: amount,
-                  rewardAmount,
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                contractAmount: amount,
+                rewardAmount,
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -72,11 +72,11 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'paid',
-                  contractedAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'paid',
+                contractedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -87,12 +87,12 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'reward_confirmed',
-                  rewardStatus: 'confirmed',
-                  approvedAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'reward_confirmed',
+                rewardStatus: 'confirmed',
+                approvedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -103,12 +103,12 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'reward_paid',
-                  rewardStatus: 'paid',
-                  paidAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'reward_paid',
+                rewardStatus: 'paid',
+                paidAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -119,13 +119,13 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'excluded',
-                  rewardStatus: 'excluded',
-                  excludeReason: reason,
-                  adminMemo: memo || r.adminMemo,
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'excluded',
+                rewardStatus: 'excluded',
+                excludeReason: reason,
+                adminMemo: memo || r.adminMemo,
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -144,11 +144,11 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'scheduled',
-                  consultationScheduledAt: date,
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'scheduled',
+                consultationScheduledAt: date,
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));
@@ -159,11 +159,11 @@ export const useReferralStore = create<ReferralState>()(
           referrals: s.referrals.map((r) =>
             r.id === id
               ? {
-                  ...r,
-                  status: 'consulted',
-                  consultedAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                ...r,
+                status: 'consulted',
+                consultedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
               : r
           ),
         }));

@@ -6,7 +6,7 @@ import { AdminLayout } from '../../components/layout';
 import { StatusBadge, EmptyState, ToastContainer, ConfirmDialog } from '../../components/ui';
 import { useToast } from '../../hooks/useToast';
 import { Users, Search } from 'lucide-react';
-import type { PartnerStatus } from '../../types';
+import type { } from '../../types';
 
 export default function AdminPartners() {
   const navigate = useNavigate();
