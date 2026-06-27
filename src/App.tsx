@@ -1,5 +1,5 @@
 import {
-  HashRouter,
+  BrowserRouter,
   Routes,
   Route,
   Navigate,
@@ -51,7 +51,7 @@ function PartnerGuard({ children }: { children: React.ReactNode }) {
 // ============================================================
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter basename="/en_link">
       <Routes>
         {/* デフォルト */}
         <Route path="/" element={<Navigate to="/propose" replace />} />
@@ -167,6 +167,6 @@ export default function App() {
         {/* フォールバック */}
         <Route path="*" element={<Navigate to="/propose" replace />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
