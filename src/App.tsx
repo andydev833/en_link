@@ -51,7 +51,7 @@ function PartnerGuard({ children }: { children: React.ReactNode }) {
 // ============================================================
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/en_link">
       <Routes>
         {/* デフォルト */}
         <Route path="/" element={<Navigate to="/propose" replace />} />
