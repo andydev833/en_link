@@ -5,7 +5,7 @@ import { useReferralStore } from '../../store/referralStore';
 import { AdminLayout } from '../../components/layout';
 import { StatusBadge, ToastContainer, ConfirmDialog } from '../../components/ui';
 import { useToast } from '../../hooks/useToast';
-import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Copy, Check, ClipboardCheck, AlertTriangle } from 'lucide-react';
 
 export default function AdminPartnerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +19,16 @@ export default function AdminPartnerDetail() {
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [memo, setMemo] = useState(partner?.memo || '');
   const [copied, setCopied] = useState(false);
+
+  // 審査チェックリスト（pending時のみ表示）
+  const [checks, setChecks] = useState({
+    area: false,          // 対象エリア確認
+    antiSocial: false,   // 反社確認
+    agreedTerms: false,  // 規約同意確認
+    noConflict: false,   // 競合・利益相反確認
+    identity: false,     // 本人確認
+  });
+  const allChecked = Object.values(checks).every(Boolean);
 
   if (!partner) {
     return (
@@ -128,15 +138,26 @@ export default function AdminPartnerDetail() {
         </div>
 
         {/* 操作ボタン */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           {partner.status === 'pending' && (
             <>
-              <button className="btn btn-accent" onClick={() => setConfirmAction('approve')}>
+              <button
+                className="btn btn-accent"
+                onClick={() => setConfirmAction('approve')}
+                disabled={!allChecked}
+                title={!allChecked ? 'すべての審査チェックを完了してから承認してください' : ''}
+              >
                 承認する
               </button>
               <button className="btn btn-danger" onClick={() => setConfirmAction('reject')}>
                 否認する
               </button>
+              {!allChecked && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-pending)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <AlertTriangle size={12} />
+                  審査チェックリストをすべて確認後に承認できます
+                </span>
+              )}
             </>
           )}
           {partner.status === 'approved' && (
@@ -175,6 +196,34 @@ export default function AdminPartnerDetail() {
               <div className="detail-item-label">事業カテゴリ</div>
               <div className="detail-item-value">{partner.businessCategory || '—'}</div>
             </div>
+            {partner.businessType && (
+              <div>
+                <div className="detail-item-label">業種</div>
+                <div className="detail-item-value">{partner.businessType}</div>
+              </div>
+            )}
+            {partner.instagramAccount && (
+              <div>
+                <div className="detail-item-label">Instagram</div>
+                <div className="detail-item-value">
+                  <a href={`https://instagram.com/${partner.instagramAccount.replace('@','')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>
+                    {partner.instagramAccount}
+                  </a>
+                </div>
+              </div>
+            )}
+            {partner.introductionChannels && partner.introductionChannels.length > 0 && (
+              <div style={{ gridColumn: '1/-1' }}>
+                <div className="detail-item-label">紹介チャネル</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  {partner.introductionChannels.map((ch) => (
+                    <span key={ch} style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-light)', borderRadius: 'var(--radius-full)', color: 'var(--color-accent-dark)' }}>
+                      {ch}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <div className="detail-item-label">紹介できる顧客層</div>
               <div className="detail-item-value">{partner.customerSegment || '—'}</div>
@@ -193,6 +242,28 @@ export default function AdminPartnerDetail() {
                 </div>
               </div>
             )}
+            {/* 同意フラグ */}
+            <div style={{ gridColumn: '1/-1' }}>
+              <div className="detail-item-label" style={{ marginBottom: '0.35rem' }}>同意フラグ</div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'agreedTerms', label: '規約同意', val: partner.agreedTerms },
+                  { key: 'agreedAdPolicy', label: '広告ポリシー同意', val: partner.agreedAdPolicy },
+                  { key: 'agreedAntiSocial', label: '反社確認', val: partner.agreedAntiSocial },
+                ].map((f) => (
+                  <span key={f.key} style={{
+                    fontSize: '0.75rem',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    border: `1px solid ${f.val ? 'var(--color-approved-border)' : 'var(--color-border)'}`,
+                    background: f.val ? 'var(--color-approved-bg)' : 'var(--color-bg)',
+                    color: f.val ? 'var(--color-approved)' : 'var(--color-text-tertiary)',
+                  }}>
+                    {f.val ? '✓' : '—'} {f.label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -365,6 +436,52 @@ export default function AdminPartnerDetail() {
           </table>
         )}
       </div>
+
+      {/* 審査チェックリスト（pending時のみ） */}
+      {partner.status === 'pending' && (
+        <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--color-pending-border)' }}>
+          <div className="card-header" style={{ background: 'var(--color-pending-bg)' }}>
+            <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-pending)' }}>
+              <ClipboardCheck size={16} />
+              審査チェックリスト
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-pending)' }}>
+              {Object.values(checks).filter(Boolean).length}/{Object.keys(checks).length} 完了
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {([
+              { key: 'area', label: '対象エリア（奈良・大阪・京都圏）に活動拠点があることを確認した' },
+              { key: 'antiSocial', label: '反社会的勢力との関係がないことを確認した（誓約書の確認）' },
+              { key: 'agreedTerms', label: '紹介パートナー規約・個人情報取扱方針への同意を確認した' },
+              { key: 'noConflict', label: '競合スタジオとの二重契約・利益相反がないことを確認した' },
+              { key: 'identity', label: '本人確認（メール・電話）を実施した' },
+            ] as { key: keyof typeof checks; label: string }[]).map((item) => (
+              <label
+                key={item.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.625rem',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: checks[item.key] ? 'var(--color-approved-bg)' : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checks[item.key]}
+                  onChange={(e) => setChecks((c) => ({ ...c, [item.key]: e.target.checked }))}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 管理メモ */}
       <div className="card">

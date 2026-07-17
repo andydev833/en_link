@@ -1,22 +1,42 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePartnerStore } from '../../store/partnerStore';
+import { useAuthStore } from '../../store/authStore';
+import { isGasConfigured } from '../../lib/gasApi';
 
 export default function PartnerLogin() {
   const navigate = useNavigate();
-  const { partnerLogin } = usePartnerStore();
+  const { partnerLogin: localLogin } = usePartnerStore();
+  const { partnerLogin: gasLogin } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = partnerLogin(email, password);
-    if (result) {
-      navigate('/partner/dashboard');
+    setLoading(true);
+    setError('');
+
+    if (isGasConfigured()) {
+      // GAS認証
+      const res = await gasLogin(email, password);
+      setLoading(false);
+      if (res.success) {
+        navigate('/partner/dashboard');
+      } else {
+        setError(res.error || 'メールアドレスまたはパスワードが正しくありません');
+      }
     } else {
-      setError('メールアドレスまたはパスワードが正しくありません');
+      // ローカルフォールバック
+      const result = localLogin(email, password);
+      setLoading(false);
+      if (result) {
+        navigate('/partner/dashboard');
+      } else {
+        setError('メールアドレスまたはパスワードが正しくありません');
+      }
     }
   };
 
@@ -90,8 +110,9 @@ export default function PartnerLogin() {
             type="submit"
             className="btn btn-primary"
             style={{ width: '100%', marginBottom: '1rem' }}
+            disabled={loading}
           >
-            ログイン
+            {loading ? 'ログイン中...' : 'ログイン'}
           </button>
 
           <div

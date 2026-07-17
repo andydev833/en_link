@@ -1,449 +1,440 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  Camera, Heart, Star, Shield, Clock, MessageCircle,
-  ChevronDown, ChevronUp
-} from 'lucide-react';
+import { useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLpStore, type LpEventPayload } from '../../store/lpStore';
+import { ChevronDown, CheckCircle, Star, MessageCircle } from 'lucide-react';
+
+// セッション間でrefをlocalStorageに保持
+function storeRef(ref: string, utmSource: string, utmMedium: string, utmCampaign: string) {
+  if (ref) localStorage.setItem('enlink_ref', ref);
+  if (utmSource) localStorage.setItem('enlink_utm_source', utmSource);
+  if (utmMedium) localStorage.setItem('enlink_utm_medium', utmMedium);
+  if (utmCampaign) localStorage.setItem('enlink_utm_campaign', utmCampaign);
+}
+
+// IntersectionObserverでセクション閲覧を計測
+function useSectionTracking(trackFn: (payload: LpEventPayload) => void) {
+  const observed = useRef(new Set<string>());
+
+  const observe = useCallback(
+    (el: HTMLElement | null, sectionKey: string) => {
+      if (!el) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && !observed.current.has(sectionKey)) {
+            observed.current.add(sectionKey);
+            trackFn({ eventType: 'section_view', sectionKey });
+          }
+        },
+        { threshold: 0.3 }
+      );
+      observer.observe(el);
+    },
+    [trackFn]
+  );
+  return observe;
+}
 
 export default function ProposePage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const refCode = searchParams.get('ref') || '';
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
+  const { getContent, fetchContents, trackEvent } = useLpStore();
+  const observe = useSectionTracking(trackEvent);
 
-  // refコードをlocalStorageに保存
+  const ref = searchParams.get('ref') || '';
+  const utmSource = searchParams.get('utm_source') || '';
+  const utmMedium = searchParams.get('utm_medium') || '';
+  const utmCampaign = searchParams.get('utm_campaign') || '';
+
   useEffect(() => {
-    if (refCode) {
-      localStorage.setItem('enlink_ref', refCode);
+    storeRef(ref, utmSource, utmMedium, utmCampaign);
+    fetchContents('propose');
+    trackEvent({ eventType: 'page_view', referralCode: ref, utmSource, utmMedium, utmCampaign, referrer: document.referrer });
+    // ユニーク訪問チェック
+    if (!sessionStorage.getItem('enlink_visited')) {
+      sessionStorage.setItem('enlink_visited', '1');
+      trackEvent({ eventType: 'unique_visit', referralCode: ref, utmSource, utmMedium, utmCampaign });
     }
-  }, [refCode]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCTA = () => {
-    const ref = refCode || localStorage.getItem('enlink_ref') || '';
-    navigate(`/contact${ref ? `?ref=${ref}` : ''}${ref ? '&' : '?'}menu=propose`);
+  const handleCta = () => {
+    trackEvent({ eventType: 'cta_click', referralCode: ref, utmSource, utmMedium, utmCampaign });
+    const params = new URLSearchParams();
+    if (ref) params.set('ref', ref);
+    if (utmSource) params.set('utm_source', utmSource);
+    if (utmMedium) params.set('utm_medium', utmMedium);
+    navigate(`/contact?${params.toString()}`);
   };
 
-  const faqs = [
-    {
-      q: '相手にバレてしまいませんか？',
-      a: 'スタジオへのお問い合わせ、事前相談はすべてあなたお一人の段階で進めることができます。相手の方に知られることなく、ご準備いただけます。',
-    },
-    {
-      q: '雨の場合はどうなりますか？',
-      a: '天候によってはスケジュールを変更することが可能です。事前相談の際に雨天プランもご提案します。屋内での演出も対応しております。',
-    },
-    {
-      q: '撮影場所はどこでも相談できますか？',
-      a: '関西エリアを中心に、さまざまなロケーションでの撮影が可能です。ご希望の場所がある場合はお気軽にご相談ください。',
-    },
-    {
-      q: '撮影だけでなく演出も相談できますか？',
-      a: 'はい。サプライズの段取りから当日の流れまで、トータルでご提案しています。初めての方でも安心してご相談ください。',
-    },
-    {
-      q: 'どれくらい前に相談すればよいですか？',
-      a: 'プロポーズ予定日の2〜3ヶ月前にご相談いただくと、余裕を持ってプランニングできます。もちろん、それ以前でも以後でも対応可能です。',
-    },
-  ];
+  const ctaText = getContent('cta_text') || 'まずは無料で相談する';
+  const heroTitle = getContent('hero_title') || '一生に一度の瞬間を、\n特別な場所で。';
+  const heroSubtitle = getContent('hero_subtitle') || '';
+  const heroImage = getContent('hero_image') || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1600';
+  const chapelTitle = getContent('chapel_title') || '式場チャペルで、\n特別なプロポーズを。';
+  const chapelBody = getContent('chapel_body') || '';
+  const surpriseTitle = getContent('surprise_title') || 'サプライズに気づかれにくい\n自然な演出を設計します。';
+  const surpriseBody = getContent('surprise_body') || '';
+  const priceBase = getContent('price_base') || '80,000';
+  const priceNote = getContent('price_note') || '';
 
   return (
-    <div style={{ background: 'var(--color-bg)' }}>
-      {/* ヒーロー */}
+    <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-text-primary)', background: '#0E0C0A' }}>
+
+      {/* ===== HERO ===== */}
       <section
+        ref={(el) => observe(el, 'hero')}
         style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #1C1A18 0%, #2d2a25 60%, #1C1A18 100%)',
+          position: 'relative',
+          height: '100svh',
+          minHeight: 600,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* 装飾的な背景要素 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '10%',
-            right: '5%',
-            width: '400px',
-            height: '400px',
-            background: 'radial-gradient(circle, rgba(201,169,110,0.08) 0%, transparent 70%)',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-          }}
+        <img
+          src={heroImage}
+          alt="プロポーズ撮影"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.55 }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10%',
-            left: '5%',
-            width: '300px',
-            height: '300px',
-            background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 70%)',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-          }}
-        />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(14,12,10,0.3) 0%, rgba(14,12,10,0.7) 100%)' }} />
 
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            textAlign: 'center',
-            padding: '4rem 2rem',
-            maxWidth: '720px',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-block',
-              fontSize: '0.7rem',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: 'var(--color-accent)',
-              marginBottom: '1.5rem',
-              padding: '0.375rem 1rem',
-              border: '1px solid rgba(201,169,110,0.3)',
-              borderRadius: '9999px',
-            }}
-          >
-            Propose Photography
+        <div style={{ position: 'relative', textAlign: 'center', padding: '0 1.5rem', maxWidth: 680 }}>
+          <div style={{ fontSize: '0.75rem', letterSpacing: '0.25em', color: '#C9A96E', marginBottom: '1.5rem', textTransform: 'uppercase' }}>
+            Studio Ueji × Propose Planning
           </div>
-
           <h1
             style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+              fontSize: 'clamp(2rem, 6vw, 3.5rem)',
               fontWeight: 300,
-              color: 'white',
-              lineHeight: 1.2,
+              color: '#FAF8F5',
+              lineHeight: 1.4,
               marginBottom: '1.5rem',
+              whiteSpace: 'pre-line',
             }}
           >
-            一生の瞬間を、<br />
-            <span style={{ color: 'var(--color-accent)' }}>プロの手</span>で残す。
+            {heroTitle}
           </h1>
-
-          <p
-            style={{
-              fontSize: '1rem',
-              color: 'rgba(255,255,255,0.65)',
-              lineHeight: 1.9,
-              marginBottom: '2.5rem',
-            }}
-          >
-            プロポーズの瞬間を美しく残す撮影サービス。<br />
-            場所選びから演出プランまで、まずは気軽にご相談ください。
-          </p>
-
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-accent btn-xl"
-              onClick={handleCTA}
-            >
-              <Heart size={18} />
-              まずは無料相談する
-            </button>
-            <a
-              href="#about"
-              className="btn btn-xl"
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: 'rgba(255,255,255,0.7)',
-              }}
-            >
-              詳細を見る
-            </a>
-          </div>
-
-          {refCode && (
-            <div
-              style={{
-                marginTop: '2rem',
-                fontSize: '0.75rem',
-                color: 'rgba(255,255,255,0.3)',
-              }}
-            >
-              紹介コード: {refCode}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* サービス価値 */}
-      <section id="about" className="lp-section">
-        <div className="lp-section-inner">
-          <div className="lp-section-eyebrow">Why Us</div>
-          <h2 className="lp-section-title">
-            プロポーズ撮影に、<br />専門スタジオを選ぶ理由
-          </h2>
-          <p className="lp-section-desc">
-            人生でもっとも大切な瞬間のひとつを、プロの技術と細やかな配慮でサポートします。
-          </p>
-
-          <div className="lp-card-grid">
-            {[
-              {
-                icon: <Camera size={20} />,
-                title: '一生残せる高品質な写真・動画',
-                desc: 'プロのカメラマンによる撮影で、その瞬間の空気感や感情まで切り取ります。',
-              },
-              {
-                icon: <MessageCircle size={20} />,
-                title: '演出から当日の流れまで相談できる',
-                desc: 'サプライズの段取り、場所選び、当日のタイムラインまで、一緒に考えます。',
-              },
-              {
-                icon: <Shield size={20} />,
-                title: 'バレない・失敗しない安心感',
-                desc: '多くのプロポーズをサポートした経験から、よくある不安への対策もご提案します。',
-              },
-            ].map((item, i) => (
-              <div key={i} className="lp-card">
-                <div className="lp-card-icon">{item.icon}</div>
-                <div className="lp-card-title">{item.title}</div>
-                <div className="lp-card-desc">{item.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* こんな方に */}
-      <section className="lp-section" style={{ background: 'var(--color-bg-alt)' }}>
-        <div className="lp-section-inner">
-          <div className="lp-section-eyebrow">For You</div>
-          <h2 className="lp-section-title">こんな方におすすめです</h2>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1rem',
-              maxWidth: '720px',
-              margin: '0 auto',
-            }}
-          >
-            {[
-              'プロポーズの瞬間を写真・動画で残したい',
-              '何から準備すればいいか分からない',
-              '関西エリアでプロポーズを考えている',
-              '写真・演出・当日の流れを相談したい',
-              'サプライズが相手にバレないか心配',
-              '失敗しない完璧なプロポーズにしたい',
-            ].map((text, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.75rem',
-                  padding: '1rem 1.25rem',
-                  background: 'var(--color-surface)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)',
-                  fontSize: '0.875rem',
-                  color: 'var(--color-text-primary)',
-                  lineHeight: 1.6,
-                }}
-              >
-                <Star size={14} style={{ color: 'var(--color-accent)', marginTop: '3px', flexShrink: 0 }} />
-                {text}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 流れ */}
-      <section className="lp-section">
-        <div className="lp-section-inner">
-          <div className="lp-section-eyebrow">Flow</div>
-          <h2 className="lp-section-title">相談から撮影までの流れ</h2>
-          <p className="lp-section-desc">
-            まずはお気軽にご相談ください。無料でご要望をお聞きします。
-          </p>
-
-          <div className="lp-steps">
-            {[
-              { title: '相談申込', desc: 'フォームから希望の日時・内容をお知らせください。担当者よりご連絡いたします。' },
-              { title: '事前相談（無料）', desc: 'ご要望をくわしくお聞きし、場所・演出・撮影プランをご提案します。' },
-              { title: 'プラン決定', desc: 'ご希望に合わせた撮影プランをご提案。内容・料金にご納得いただいてから契約。' },
-              { title: '契約・決済', desc: 'プランが決まりましたら、お申し込み手続きと料金のお支払いをお願いします。' },
-              { title: '撮影当日', desc: 'プロのカメラマンがプロポーズの瞬間を美しく撮影します。' },
-              { title: '納品', desc: '撮影後、編集・加工した写真・動画をお渡しします。一生の思い出に。' },
-            ].map((step, i) => (
-              <div key={i} className="lp-step">
-                <div className="lp-step-num">{i + 1}</div>
-                <div className="lp-step-content">
-                  <div className="lp-step-title">{step.title}</div>
-                  <div className="lp-step-desc">{step.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 料金 */}
-      <section className="lp-section" style={{ background: 'var(--color-text-primary)' }}>
-        <div className="lp-section-inner" style={{ textAlign: 'center' }}>
-          <div className="lp-section-eyebrow" style={{ color: 'var(--color-accent)' }}>Price</div>
-          <h2
-            className="lp-section-title"
-            style={{ color: 'white' }}
-          >
-            料金目安
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', lineHeight: 1.8 }}>
-            撮影内容・ロケーション・時間によって異なります。<br />
-            まずはご要望をお聞きした上で、個別にご提案いたします。
-          </p>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1.5rem',
-              maxWidth: '760px',
-              margin: '0 auto 3rem',
-            }}
-          >
-            {[
-              { label: 'ベーシックプラン', price: '¥150,000〜', desc: 'スタジオまたは近郊ロケーション・写真のみ' },
-              { label: 'スタンダードプラン', price: '¥250,000〜', desc: '演出プランニング込み・写真＋動画' },
-              { label: 'プレミアムプラン', price: '¥400,000〜', desc: 'フルサポート・完全サプライズ対応・遠方ロケ' },
-            ].map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '2rem 1.5rem',
-                  border: '1px solid rgba(201,169,110,0.3)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: i === 1 ? 'rgba(201,169,110,0.08)' : 'rgba(255,255,255,0.04)',
-                }}
-              >
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
-                  {item.label}
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '1.5rem',
-                    color: i === 1 ? 'var(--color-accent)' : 'white',
-                    marginBottom: '0.75rem',
-                  }}
-                >
-                  {item.price}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
-                  {item.desc}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div
-            style={{
-              padding: '1rem 1.5rem',
-              background: 'rgba(201,169,110,0.08)',
-              border: '1px solid rgba(201,169,110,0.2)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-              color: 'rgba(255,255,255,0.6)',
-              maxWidth: '560px',
-              margin: '0 auto',
-            }}
-          >
-            ※ 上記は目安です。内容に応じて個別にお見積りいたします。<br />
-            相談は完全無料です。まずはお気軽にお声がけください。
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="lp-section">
-        <div className="lp-section-inner">
-          <div className="lp-section-eyebrow">FAQ</div>
-          <h2 className="lp-section-title">よくあるご不安・ご質問</h2>
-
-          <div className="lp-faq-list">
-            {faqs.map((faq, i) => (
-              <div key={i} className="lp-faq-item">
-                <div
-                  className="lp-faq-q"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                >
-                  <span>{faq.q}</span>
-                  {openFaq === i ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-                {openFaq === i && (
-                  <div className="lp-faq-a">{faq.a}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 紹介経由の説明 */}
-      {refCode && (
-        <section className="lp-section" style={{ background: 'var(--color-bg-alt)', padding: '3rem 1.5rem' }}>
-          <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-            <div
-              style={{
-                padding: '1.25rem 1.5rem',
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8rem',
-                color: 'var(--color-text-secondary)',
-                lineHeight: 1.7,
-              }}
-            >
-              <Clock size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              このページは紹介リンク経由でアクセスされています。
-              紹介経由でお申し込みいただいた場合でも、料金が上乗せされることは一切ありません。
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* CTA */}
-      <section className="lp-cta-section">
-        <div style={{ maxWidth: '560px', margin: '0 auto' }}>
-          <div className="lp-section-eyebrow" style={{ color: 'var(--color-accent)' }}>Contact</div>
-          <h2 className="lp-cta-title">
-            まずは無料相談から<br />はじめましょう
-          </h2>
-          <p className="lp-cta-desc">
-            難しいことは何もありません。<br />
-            希望の日時と少しのご要望だけでOKです。
+          <p style={{ fontSize: 'clamp(0.875rem, 2vw, 1rem)', color: 'rgba(250,248,245,0.75)', lineHeight: 1.9, marginBottom: '2.5rem', whiteSpace: 'pre-line' }}>
+            {heroSubtitle}
           </p>
           <button
-            className="btn btn-accent btn-xl"
-            onClick={handleCTA}
-            style={{ margin: '0 auto', display: 'flex' }}
+            onClick={handleCta}
+            style={{
+              background: 'linear-gradient(135deg, #C9A96E, #A67C52)',
+              color: '#FAF8F5',
+              border: 'none',
+              padding: '1rem 2.5rem',
+              fontSize: '0.9375rem',
+              letterSpacing: '0.1em',
+              borderRadius: 2,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-serif)',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.opacity = '0.85')}
+            onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            <Heart size={18} />
-            プロポーズ撮影について相談する
+            {ctaText}
           </button>
+        </div>
+
+        {/* スクロールインジケーター */}
+        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', color: 'rgba(250,248,245,0.4)', animation: 'bounce 2s infinite' }}>
+          <ChevronDown size={24} />
+        </div>
+      </section>
+
+      {/* ===== CHAPEL ===== */}
+      <section
+        ref={(el) => observe(el, 'chapel')}
+        style={{ background: '#FAF8F5', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem' }}
+      >
+        <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
+          <div>
+            <div style={{ width: 40, height: 1, background: '#C9A96E', marginBottom: '1.5rem' }} />
+            <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, lineHeight: 1.5, marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>
+              {chapelTitle}
+            </h2>
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.9, color: 'var(--color-text-secondary)', marginBottom: '2rem', whiteSpace: 'pre-line' }}>
+              {chapelBody}
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {['奈良・大阪の指定式場チャペルをご利用いただけます', '雨天でも屋内チャペルで実施可能', '日程調整はご相談後に決定', '式場チャペルを貸し切って撮影'].map((item) => (
+                <li key={item} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                  <CheckCircle size={16} color="#C9A96E" style={{ flexShrink: 0, marginTop: 2 }} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <img
+              src="https://images.unsplash.com/photo-1606800052052-a08af7148866?w=800"
+              alt="チャペル"
+              style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 2 }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SURPRISE ===== */}
+      <section
+        ref={(el) => observe(el, 'surprise')}
+        style={{ background: '#1A1612', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem' }}
+      >
+        <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
+          <div>
+            <img
+              src="https://images.unsplash.com/photo-1503455637927-730bce8583c0?w=800"
+              alt="サプライズ演出"
+              style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 2 }}
+            />
+          </div>
+          <div>
+            <div style={{ width: 40, height: 1, background: '#C9A96E', marginBottom: '1.5rem' }} />
+            <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, color: '#FAF8F5', lineHeight: 1.5, marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>
+              {surpriseTitle}
+            </h2>
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.9, color: 'rgba(250,248,245,0.65)', marginBottom: '2rem', whiteSpace: 'pre-line' }}>
+              {surpriseBody}
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {[
+                'モデル撮影という体で自然に呼び出せます',
+                '花束をご用意できます',
+                '指輪を渡すタイミングを一緒に設計します',
+                '入場からプロポーズまでの流れを事前に整理します',
+                '当日の進行をご一緒に確認します',
+              ].map((item) => (
+                <li key={item} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.875rem', color: 'rgba(250,248,245,0.65)' }}>
+                  <CheckCircle size={16} color="#C9A96E" style={{ flexShrink: 0, marginTop: 2 }} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== FEATURES ===== */}
+      <section
+        ref={(el) => observe(el, 'features')}
+        style={{ background: '#FAF8F5', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem', textAlign: 'center' }}
+      >
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, marginBottom: '3rem' }}>
+            撮影・演出でできること
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '2rem' }}>
+            {[
+              { icon: '💍', title: '指輪を渡す', desc: '最高の瞬間の タイミングを設計' },
+              { icon: '💐', title: '花束の準備', desc: 'サプライズ用の 花束をご用意' },
+              { icon: '⛪', title: 'チャペル使用', desc: '奈良・大阪の 指定式場で実施' },
+              { icon: '📸', title: '感動の記録', desc: '二人の瞬間を 高品質に撮影' },
+              { icon: '🎬', title: '当日の流れ', desc: 'シナリオを 事前に整理' },
+              { icon: '☂️', title: '雨天対応', desc: '屋内チャペルで 天候を選ばない' },
+            ].map((f) => (
+              <div key={f.title} style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>{f.icon}</div>
+                <div style={{ fontWeight: 500, fontSize: '0.9375rem', marginBottom: '0.5rem' }}>{f.title}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== PRICING ===== */}
+      <section
+        ref={(el) => observe(el, 'pricing')}
+        style={{ background: '#1A1612', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem', textAlign: 'center' }}
+      >
+        <div style={{ maxWidth: 580, margin: '0 auto' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, color: '#FAF8F5', marginBottom: '2.5rem' }}>
+            料金
+          </h2>
+          <div style={{ border: '1px solid rgba(201,169,110,0.3)', padding: '3rem 2rem', borderRadius: 4 }}>
+            <div style={{ fontSize: '0.8rem', letterSpacing: '0.2em', color: '#C9A96E', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+              Shooting Fee
+            </div>
+            <div style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)', fontWeight: 300, color: '#FAF8F5', marginBottom: '0.5rem' }}>
+              ¥{Number(priceBase.replace(/,/g, '')).toLocaleString()}
+              <span style={{ fontSize: '1.25rem', color: 'rgba(250,248,245,0.5)' }}>〜</span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(250,248,245,0.5)', marginBottom: '2rem' }}>撮影料金のみの目安</div>
+            <p style={{ fontSize: '0.8rem', color: 'rgba(250,248,245,0.5)', lineHeight: 1.8, textAlign: 'left', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: 2, whiteSpace: 'pre-line' }}>
+              {priceNote}
+            </p>
+          </div>
+          <div style={{ marginTop: '2rem' }}>
+            <button
+              onClick={handleCta}
+              style={{
+                background: 'linear-gradient(135deg, #C9A96E, #A67C52)',
+                color: '#FAF8F5',
+                border: 'none',
+                padding: '1rem 2.5rem',
+                fontSize: '0.9375rem',
+                letterSpacing: '0.1em',
+                borderRadius: 2,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-serif)',
+              }}
+            >
+              {ctaText}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== FLOW ===== */}
+      <section
+        ref={(el) => observe(el, 'flow')}
+        style={{ background: '#FAF8F5', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem' }}
+      >
+        <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, marginBottom: '3rem' }}>相談の流れ</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', textAlign: 'left' }}>
+            {[
+              { step: '01', title: '無料相談のお申込み', desc: 'このページ下部のフォームから、希望日時と相談内容をご記入ください。' },
+              { step: '02', title: 'スタジオからご連絡', desc: '2〜3営業日以内にメールまたはお電話でご連絡します。' },
+              { step: '03', title: '対面相談（スタジオうえじ）', desc: 'スタジオにお越しいただき、演出内容・式場・撮影について詳しくご相談します。' },
+              { step: '04', title: 'プロポーズ当日', desc: 'スタッフが当日をサポート。サプライズの瞬間を一緒に作ります。' },
+            ].map((item) => (
+              <div key={item.step} style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+                <div style={{
+                  fontSize: '2rem', fontWeight: 300, color: '#C9A96E', lineHeight: 1,
+                  minWidth: 48, flexShrink: 0,
+                }}>
+                  {item.step}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 500, marginBottom: '0.35rem' }}>{item.title}</div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.8 }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== VOICES ===== */}
+      <section
+        ref={(el) => observe(el, 'voices')}
+        style={{ background: '#1A1612', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem' }}
+      >
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, color: '#FAF8F5', textAlign: 'center', marginBottom: '3rem' }}>
+            お客様の声
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
+            {[
+              { text: '式場チャペルで想像以上の演出ができました。花束を渡すタイミングまで一緒に考えてくれて、当日も完璧でした。', author: '30代 男性', area: '奈良県' },
+              { text: '「モデル撮影」というかたちで自然に彼女を連れてこられ、バレずにサプライズができました。', author: '20代 男性', area: '大阪府' },
+              { text: '流れを事前にしっかり相談できたので、当日は安心して臨めました。感謝しています。', author: '30代 男性', area: '奈良県' },
+            ].map((v, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: 4, border: '1px solid rgba(201,169,110,0.15)' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
+                  {Array(5).fill(0).map((_, j) => <Star key={j} size={14} fill="#C9A96E" color="#C9A96E" />)}
+                </div>
+                <MessageCircle size={20} color="#C9A96E" style={{ marginBottom: '0.75rem', opacity: 0.6 }} />
+                <p style={{ fontSize: '0.875rem', color: 'rgba(250,248,245,0.75)', lineHeight: 1.9, marginBottom: '1rem' }}>{v.text}</p>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(250,248,245,0.4)' }}>{v.author}（{v.area}）</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== FAQ ===== */}
+      <section
+        ref={(el) => observe(el, 'faq')}
+        style={{ background: '#FAF8F5', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem' }}
+      >
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 300, textAlign: 'center', marginBottom: '3rem' }}>
+            よくある質問
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {[
+              { q: '相談は無料ですか？', a: 'はい、初回相談は完全無料です。スタジオうえじ店舗にお越しいただき、プロポーズの流れや式場チャペルの利用可否について詳しくご説明します。' },
+              { q: '奈良・大阪以外でも対応できますか？', a: '現在は奈良・大阪を中心に対応しております。詳しくはご相談ください。' },
+              { q: '彼女にバレてしまわないか不安です。', a: '「モデル撮影のお手伝い」という形で自然にお呼び出しいただく方法をご提案しています。当日の流れを事前に一緒に整理しますので、ご安心ください。' },
+              { q: '雨天の場合はどうなりますか？', a: '指定式場の屋内チャペルを使用するため、雨天でも実施可能です。' },
+              { q: '花束の手配もしてもらえますか？', a: 'はい、ご要望に応じて花束のご用意もできます。詳細はご相談の際にお話しください。' },
+              { q: '相談から当日まで、どのくらいの期間が必要ですか？', a: '式場チャペルの日程調整が必要なため、余裕をもって1〜2ヶ月前のご相談をおすすめしています。' },
+            ].map((faq, i) => (
+              <details
+                key={i}
+                style={{
+                  borderBottom: '1px solid var(--color-border)',
+                  padding: '1.25rem 0',
+                }}
+              >
+                <summary style={{ cursor: 'pointer', fontWeight: 500, fontSize: '0.9375rem', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Q. {faq.q}</span>
+                  <span style={{ fontSize: '1.25rem', color: '#C9A96E', lineHeight: 1 }}>+</span>
+                </summary>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.9, marginTop: '0.75rem', paddingLeft: '1rem', borderLeft: '2px solid #C9A96E' }}>
+                  {faq.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== 最終CTA ===== */}
+      <section
+        ref={(el) => observe(el, 'cta_final')}
+        style={{ background: 'linear-gradient(135deg, #1A1612, #0E0C0A)', padding: 'clamp(4rem, 8vw, 7rem) 1.5rem', textAlign: 'center' }}
+      >
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+          <div style={{ width: 40, height: 1, background: '#C9A96E', margin: '0 auto 1.5rem' }} />
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 300, color: '#FAF8F5', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+            まずはご相談ください。
+          </h2>
+          <p style={{ fontSize: '0.9375rem', color: 'rgba(250,248,245,0.6)', lineHeight: 1.9, marginBottom: '2.5rem' }}>
+            無料相談は、具体的な演出内容や式場チャペルの利用可否を確認するため、<br />
+            原則スタジオうえじ店舗で実施しています。
+          </p>
+          <button
+            onClick={handleCta}
+            style={{
+              background: 'linear-gradient(135deg, #C9A96E, #A67C52)',
+              color: '#FAF8F5',
+              border: 'none',
+              padding: '1.25rem 3rem',
+              fontSize: '1rem',
+              letterSpacing: '0.1em',
+              borderRadius: 2,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-serif)',
+              display: 'inline-block',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.opacity = '0.85')}
+            onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+          >
+            {ctaText}
+          </button>
+          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'rgba(250,248,245,0.35)' }}>
+            ご相談は無料・お見積りも無料です
+          </div>
         </div>
       </section>
 
       {/* フッター */}
-      <footer
-        style={{
-          background: '#111',
-          padding: '2rem 1.5rem',
-          textAlign: 'center',
-          fontSize: '0.75rem',
-          color: 'rgba(255,255,255,0.3)',
-        }}
-      >
-        © 2026 スタジオうえじ. All rights reserved.
+      <footer style={{ background: '#0E0C0A', padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <div style={{ fontSize: '0.75rem', color: 'rgba(250,248,245,0.3)', letterSpacing: '0.1em' }}>
+          © Studio Ueji. All rights reserved.
+        </div>
       </footer>
     </div>
   );

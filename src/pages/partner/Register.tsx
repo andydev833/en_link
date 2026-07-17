@@ -1,12 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePartnerStore } from '../../store/partnerStore';
-import type { Partner } from '../../types';
+import type { Partner, IntroductionChannel } from '../../types';
+
+const BUSINESS_CATEGORIES = [
+  '個人（既存顧客）',
+  'ジュエリーショップ',
+  '結婚相談所',
+  '花屋',
+  'ホテル',
+  'レストラン',
+  '美容室',
+  'ブライダル関連',
+  '保険営業',
+  '士業',
+  '不動産',
+  'その他',
+];
+
+const INTRODUCTION_CHANNELS: { value: IntroductionChannel; label: string }[] = [
+  { value: 'store', label: '店舗での対面紹介' },
+  { value: 'sns', label: 'SNS（Instagram・X 等）' },
+  { value: 'line', label: 'LINE・メッセージ' },
+  { value: 'existing_customer', label: '既存顧客への案内' },
+  { value: 'business_partner', label: 'ビジネスパートナー経由' },
+  { value: 'other', label: 'その他' },
+];
 
 export default function PartnerRegister() {
   const navigate = useNavigate();
   const { addPartner } = usePartnerStore();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     partnerType: 'individual' as 'individual' | 'business',
@@ -16,10 +41,17 @@ export default function PartnerRegister() {
     phone: '',
     area: '',
     businessCategory: '',
+    businessType: '',
     customerSegment: '',
+    instagramAccount: '',
+    introductionChannels: [] as IntroductionChannel[],
     notes: '',
-    agreed: false,
     password: '',
+    passwordConfirm: '',
+    // 3つの同意
+    agreedTerms: false,
+    agreedAdPolicy: false,
+    agreedAntiSocial: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -27,26 +59,44 @@ export default function PartnerRegister() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = '氏名を入力してください';
-    if (!form.email.trim()) e.email = 'メールアドレスを入力してください';
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      e.email = '正しいメールアドレスを入力してください';
     if (!form.phone.trim()) e.phone = '電話番号を入力してください';
     if (!form.area.trim()) e.area = '活動エリアを入力してください';
     if (!form.password.trim()) e.password = 'パスワードを入力してください';
-    if (form.password.length > 0 && form.password.length < 6) e.password = '6文字以上のパスワードを設定してください';
+    if (form.password.length > 0 && form.password.length < 6)
+      e.password = '6文字以上のパスワードを設定してください';
+    if (form.password !== form.passwordConfirm)
+      e.passwordConfirm = 'パスワードが一致しません';
     if (form.partnerType === 'business') {
       if (!form.companyName.trim()) e.companyName = '会社名・屋号を入力してください';
-      if (!form.businessCategory.trim()) e.businessCategory = '事業カテゴリを入力してください';
+      if (!form.businessCategory.trim()) e.businessCategory = '事業カテゴリを選択してください';
     }
-    if (!form.agreed) e.agreed = '規約に同意してください';
+    if (!form.agreedTerms) e.agreedTerms = '紹介パートナー規約への同意が必要です';
+    if (!form.agreedAdPolicy) e.agreedAdPolicy = '広告・紹介活動ポリシーへの同意が必要です';
+    if (!form.agreedAntiSocial) e.agreedAntiSocial = '反社会的勢力に該当しないことの確認が必要です';
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const toggleChannel = (value: IntroductionChannel) => {
+    setForm((f) => {
+      const channels = f.introductionChannels.includes(value)
+        ? f.introductionChannels.filter((c) => c !== value)
+        : [...f.introductionChannels, value];
+      return { ...f, introductionChannels: channels };
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
+    setSubmitting(true);
 
     const partner: Partner = {
       id: `p_${Date.now()}`,
@@ -57,14 +107,21 @@ export default function PartnerRegister() {
       phone: form.phone,
       area: form.area,
       businessCategory: form.businessCategory || undefined,
+      businessType: form.businessType || undefined,
       customerSegment: form.customerSegment || undefined,
+      instagramAccount: form.instagramAccount || undefined,
+      introductionChannels: form.introductionChannels.length > 0 ? form.introductionChannels : undefined,
       status: 'pending',
       createdAt: new Date().toISOString(),
       passwordHash: form.password,
       memo: form.notes || undefined,
+      agreedTerms: form.agreedTerms,
+      agreedAdPolicy: form.agreedAdPolicy,
+      agreedAntiSocial: form.agreedAntiSocial,
     };
 
-    addPartner(partner);
+    await addPartner(partner);
+    setSubmitting(false);
     setSubmitted(true);
   };
 
@@ -88,6 +145,7 @@ export default function PartnerRegister() {
               justifyContent: 'center',
               margin: '0 auto 1.5rem',
               fontSize: '1.5rem',
+              color: 'var(--color-approved)',
             }}
           >
             ✓
@@ -124,6 +182,8 @@ export default function PartnerRegister() {
       </div>
     );
   }
+
+  const hasErrors = Object.values(errors).some(Boolean);
 
   return (
     <div style={{ background: 'var(--color-bg)', minHeight: '100vh' }}>
@@ -163,8 +223,15 @@ export default function PartnerRegister() {
           </p>
         </div>
 
+        {hasErrors && (
+          <div style={{ padding: '1rem', background: 'var(--color-rejected-bg)', border: '1px solid var(--color-rejected-border)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', fontSize: '0.85rem', color: 'var(--color-rejected)' }}>
+            入力内容をご確認ください
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} noValidate>
-          {/* 基本情報 */}
+
+          {/* 紹介者区分 */}
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div className="form-section-title">紹介者区分</div>
             <div className="form-group">
@@ -199,7 +266,7 @@ export default function PartnerRegister() {
             <div className="form-group">
               <label className="form-label">氏名 <span className="required">*</span></label>
               <input
-                className="form-input"
+                className={`form-input ${errors.name ? 'form-input-error' : ''}`}
                 placeholder="山田 花子"
                 value={form.name}
                 onChange={(e) => update('name', e.target.value)}
@@ -208,16 +275,28 @@ export default function PartnerRegister() {
             </div>
 
             {form.partnerType === 'business' && (
-              <div className="form-group">
-                <label className="form-label">会社名・屋号 <span className="required">*</span></label>
-                <input
-                  className="form-input"
-                  placeholder="株式会社〇〇"
-                  value={form.companyName}
-                  onChange={(e) => update('companyName', e.target.value)}
-                />
-                {errors.companyName && <div className="form-error">{errors.companyName}</div>}
-              </div>
+              <>
+                <div className="form-group">
+                  <label className="form-label">会社名・屋号 <span className="required">*</span></label>
+                  <input
+                    className={`form-input ${errors.companyName ? 'form-input-error' : ''}`}
+                    placeholder="株式会社〇〇"
+                    value={form.companyName}
+                    onChange={(e) => update('companyName', e.target.value)}
+                  />
+                  {errors.companyName && <div className="form-error">{errors.companyName}</div>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">業種</label>
+                  <input
+                    className="form-input"
+                    placeholder="例：ブライダル、ジュエリー、ホテル"
+                    value={form.businessType}
+                    onChange={(e) => update('businessType', e.target.value)}
+                  />
+                  <div className="form-hint">事業の業種を簡潔に記入してください</div>
+                </div>
+              </>
             )}
           </div>
 
@@ -227,7 +306,7 @@ export default function PartnerRegister() {
             <div className="form-group">
               <label className="form-label">メールアドレス <span className="required">*</span></label>
               <input
-                className="form-input"
+                className={`form-input ${errors.email ? 'form-input-error' : ''}`}
                 type="email"
                 placeholder="example@mail.com"
                 value={form.email}
@@ -238,12 +317,22 @@ export default function PartnerRegister() {
             <div className="form-group">
               <label className="form-label">電話番号 <span className="required">*</span></label>
               <input
-                className="form-input"
+                className={`form-input ${errors.phone ? 'form-input-error' : ''}`}
                 placeholder="090-0000-0000"
                 value={form.phone}
                 onChange={(e) => update('phone', e.target.value)}
               />
               {errors.phone && <div className="form-error">{errors.phone}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Instagramアカウント</label>
+              <input
+                className="form-input"
+                placeholder="@your_account"
+                value={form.instagramAccount}
+                onChange={(e) => update('instagramAccount', e.target.value)}
+              />
+              <div className="form-hint">任意。SNS紹介を行う場合にご記入ください</div>
             </div>
           </div>
 
@@ -253,7 +342,7 @@ export default function PartnerRegister() {
             <div className="form-group">
               <label className="form-label">活動エリア <span className="required">*</span></label>
               <input
-                className="form-input"
+                className={`form-input ${errors.area ? 'form-input-error' : ''}`}
                 placeholder="例：大阪市、京都市内、関西全域など"
                 value={form.area}
                 onChange={(e) => update('area', e.target.value)}
@@ -266,25 +355,47 @@ export default function PartnerRegister() {
                 事業カテゴリ{form.partnerType === 'business' && <span className="required">*</span>}
               </label>
               <select
-                className="form-select"
+                className={`form-select ${errors.businessCategory ? 'form-input-error' : ''}`}
                 value={form.businessCategory}
                 onChange={(e) => update('businessCategory', e.target.value)}
               >
                 <option value="">選択してください</option>
-                <option value="個人（既存顧客）">個人（既存顧客）</option>
-                <option value="ジュエリーショップ">ジュエリーショップ</option>
-                <option value="結婚相談所">結婚相談所</option>
-                <option value="花屋">花屋</option>
-                <option value="ホテル">ホテル</option>
-                <option value="レストラン">レストラン</option>
-                <option value="美容室">美容室</option>
-                <option value="ブライダル関連">ブライダル関連</option>
-                <option value="保険営業">保険営業</option>
-                <option value="士業">士業</option>
-                <option value="不動産">不動産</option>
-                <option value="その他">その他</option>
+                {BUSINESS_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
               {errors.businessCategory && <div className="form-error">{errors.businessCategory}</div>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">主な紹介方法 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>（複数選択可）</span></label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {INTRODUCTION_CHANNELS.map((ch) => (
+                  <label
+                    key={ch.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      padding: '0.35rem 0.75rem',
+                      border: `1px solid ${form.introductionChannels.includes(ch.value) ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      borderRadius: 'var(--radius-full)',
+                      background: form.introductionChannels.includes(ch.value) ? 'var(--color-accent-bg)' : 'transparent',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{ display: 'none' }}
+                      checked={form.introductionChannels.includes(ch.value)}
+                      onChange={() => toggleChannel(ch.value)}
+                    />
+                    {ch.label}
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="form-group">
@@ -315,50 +426,95 @@ export default function PartnerRegister() {
             <div className="form-group">
               <label className="form-label">パスワード <span className="required">*</span></label>
               <input
-                className="form-input"
+                className={`form-input ${errors.password ? 'form-input-error' : ''}`}
                 type="password"
                 placeholder="6文字以上"
                 value={form.password}
                 onChange={(e) => update('password', e.target.value)}
               />
               {errors.password && <div className="form-error">{errors.password}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">パスワード（確認） <span className="required">*</span></label>
+              <input
+                className={`form-input ${errors.passwordConfirm ? 'form-input-error' : ''}`}
+                type="password"
+                placeholder="もう一度入力してください"
+                value={form.passwordConfirm}
+                onChange={(e) => update('passwordConfirm', e.target.value)}
+              />
+              {errors.passwordConfirm && <div className="form-error">{errors.passwordConfirm}</div>}
               <div className="form-hint">承認後のログインで使用します</div>
             </div>
           </div>
 
-          {/* 規約同意 */}
+          {/* 3つの同意 */}
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div className="form-checkbox-group">
-              <input
-                type="checkbox"
-                className="form-checkbox"
-                id="agreed"
-                checked={form.agreed}
-                onChange={(e) => update('agreed', e.target.checked)}
-              />
-              <label
-                htmlFor="agreed"
-                style={{ fontSize: '0.875rem', lineHeight: 1.7, cursor: 'pointer' }}
-              >
-                <a href="#" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
-                  紹介パートナー規約
-                </a>
-                および
-                <a href="#" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
-                  個人情報の取扱い
-                </a>
-                に同意します <span style={{ color: 'var(--color-rejected)', fontSize: '0.75rem' }}>*</span>
+            <div className="form-section-title">確認・同意事項</div>
+
+            {/* 同意①: 規約 */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                  checked={form.agreedTerms}
+                  onChange={(e) => update('agreedTerms', e.target.checked)}
+                />
+                <span style={{ fontSize: '0.875rem', lineHeight: 1.7 }}>
+                  <a href="#" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>紹介パートナー規約</a>
+                  および
+                  <a href="#" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>個人情報の取扱い</a>
+                  に同意します <span className="required">*</span>
+                </span>
               </label>
+              {errors.agreedTerms && <div className="form-error" style={{ marginTop: '0.35rem' }}>{errors.agreedTerms}</div>}
             </div>
-            {errors.agreed && <div className="form-error" style={{ marginTop: '0.5rem' }}>{errors.agreed}</div>}
+
+            {/* 同意②: 広告・紹介活動ポリシー */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                  checked={form.agreedAdPolicy}
+                  onChange={(e) => update('agreedAdPolicy', e.target.checked)}
+                />
+                <span style={{ fontSize: '0.875rem', lineHeight: 1.7 }}>
+                  <a href="#" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>広告・紹介活動に関するポリシー</a>
+                  （無断での割引告知・誇大広告の禁止等）に同意します <span className="required">*</span>
+                </span>
+              </label>
+              {errors.agreedAdPolicy && <div className="form-error" style={{ marginTop: '0.35rem' }}>{errors.agreedAdPolicy}</div>}
+            </div>
+
+            {/* 同意③: 反社会的勢力 */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                  checked={form.agreedAntiSocial}
+                  onChange={(e) => update('agreedAntiSocial', e.target.checked)}
+                />
+                <span style={{ fontSize: '0.875rem', lineHeight: 1.7 }}>
+                  自己または所属組織が反社会的勢力に該当せず、今後も該当しないことを誓約します <span className="required">*</span>
+                </span>
+              </label>
+              {errors.agreedAntiSocial && <div className="form-error" style={{ marginTop: '0.35rem' }}>{errors.agreedAntiSocial}</div>}
+            </div>
           </div>
 
           <button
             type="submit"
             className="btn btn-primary btn-xl"
             style={{ width: '100%' }}
+            disabled={submitting}
           >
-            登録申請する
+            {submitting ? '送信中...' : '登録申請する'}
           </button>
 
           <p

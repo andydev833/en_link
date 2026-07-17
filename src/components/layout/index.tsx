@@ -8,8 +8,10 @@ import {
   Settings,
   Menu,
   LogOut,
+  BarChart2,
+  BookOpen,
 } from 'lucide-react';
-import { useSettingsStore } from '../../store/settingsStore';
+import { useAuthStore } from '../../store/authStore';
 import { usePartnerStore } from '../../store/partnerStore';
 import { useReferralStore } from '../../store/referralStore';
 
@@ -18,7 +20,7 @@ import { useReferralStore } from '../../store/referralStore';
 // ============================================================
 export function AdminLayout({ children, title }: { children: ReactNode; title: string }) {
   const navigate = useNavigate();
-  const { adminLogout } = useSettingsStore();
+  const { adminLogout } = useAuthStore();
   const { partners } = usePartnerStore();
   const { referrals } = useReferralStore();
 
@@ -86,6 +88,28 @@ export function AdminLayout({ children, title }: { children: ReactNode; title: s
             >
               <DollarSign size={16} />
               報酬管理
+            </NavLink>
+          </div>
+
+          <div className="admin-nav-section">
+            <div className="admin-nav-section-label">分析・CMS</div>
+            <NavLink
+              to="/admin/analytics"
+              className={({ isActive }) =>
+                `admin-nav-item ${isActive ? 'active' : ''}`
+              }
+            >
+              <BarChart2 size={16} />
+              LP分析
+            </NavLink>
+            <NavLink
+              to="/admin/lp-contents"
+              className={({ isActive }) =>
+                `admin-nav-item ${isActive ? 'active' : ''}`
+              }
+            >
+              <BookOpen size={16} />
+              LP編集(CMS)
             </NavLink>
           </div>
 

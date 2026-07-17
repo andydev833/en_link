@@ -4,7 +4,7 @@ import {
   Route,
   Navigate,
 } from 'react-router-dom';
-import { useSettingsStore } from './store/settingsStore';
+import { useAuthStore } from './store/authStore';
 import { usePartnerStore } from './store/partnerStore';
 
 // Customer pages
@@ -30,19 +30,23 @@ import AdminReferralDetail from './pages/admin/ReferralDetail';
 import AdminRewards from './pages/admin/Rewards';
 import AdminMenus from './pages/admin/Menus';
 import AdminSettings from './pages/admin/Settings';
+import AdminAnalytics from './pages/admin/Analytics';
+import AdminLpContents from './pages/admin/LpContents';
 
 // ============================================================
 // 認証ガード
 // ============================================================
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { isAdminLoggedIn } = useSettingsStore();
+  const { isAdminLoggedIn } = useAuthStore();
   if (!isAdminLoggedIn) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
 
 function PartnerGuard({ children }: { children: React.ReactNode }) {
-  const { isPartnerLoggedIn } = usePartnerStore();
-  if (!isPartnerLoggedIn) return <Navigate to="/partner/login" replace />;
+  // authStore（GAS連携）とpartnerStore（ローカルフォールバック）の両方をチェック
+  const { isPartnerLoggedIn: authLoggedIn } = useAuthStore();
+  const { isPartnerLoggedIn: localLoggedIn } = usePartnerStore();
+  if (!authLoggedIn && !localLoggedIn) return <Navigate to="/partner/login" replace />;
   return <>{children}</>;
 }
 
@@ -64,105 +68,25 @@ export default function App() {
         {/* 紹介者向け */}
         <Route path="/partner/register" element={<PartnerRegister />} />
         <Route path="/partner/login" element={<PartnerLogin />} />
-        <Route
-          path="/partner/dashboard"
-          element={
-            <PartnerGuard>
-              <PartnerDashboard />
-            </PartnerGuard>
-          }
-        />
-        <Route
-          path="/partner/materials"
-          element={
-            <PartnerGuard>
-              <PartnerMaterials />
-            </PartnerGuard>
-          }
-        />
-        <Route
-          path="/partner/referrals"
-          element={
-            <PartnerGuard>
-              <PartnerReferrals />
-            </PartnerGuard>
-          }
-        />
-        <Route
-          path="/partner/payment"
-          element={
-            <PartnerGuard>
-              <PartnerPayment />
-            </PartnerGuard>
-          }
-        />
+        <Route path="/partner/dashboard" element={<PartnerGuard><PartnerDashboard /></PartnerGuard>} />
+        <Route path="/partner/materials" element={<PartnerGuard><PartnerMaterials /></PartnerGuard>} />
+        <Route path="/partner/referrals" element={<PartnerGuard><PartnerReferrals /></PartnerGuard>} />
+        <Route path="/partner/payment" element={<PartnerGuard><PartnerPayment /></PartnerGuard>} />
 
         {/* 管理者向け */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminGuard>
-              <AdminDashboard />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/partners"
-          element={
-            <AdminGuard>
-              <AdminPartners />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/partners/:id"
-          element={
-            <AdminGuard>
-              <AdminPartnerDetail />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/referrals"
-          element={
-            <AdminGuard>
-              <AdminReferrals />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/referrals/:id"
-          element={
-            <AdminGuard>
-              <AdminReferralDetail />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/rewards"
-          element={
-            <AdminGuard>
-              <AdminRewards />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/menus"
-          element={
-            <AdminGuard>
-              <AdminMenus />
-            </AdminGuard>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <AdminGuard>
-              <AdminSettings />
-            </AdminGuard>
-          }
-        />
+        <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+        <Route path="/admin/partners" element={<AdminGuard><AdminPartners /></AdminGuard>} />
+        <Route path="/admin/partners/:id" element={<AdminGuard><AdminPartnerDetail /></AdminGuard>} />
+        <Route path="/admin/referrals" element={<AdminGuard><AdminReferrals /></AdminGuard>} />
+        <Route path="/admin/referrals/:id" element={<AdminGuard><AdminReferralDetail /></AdminGuard>} />
+        <Route path="/admin/rewards" element={<AdminGuard><AdminRewards /></AdminGuard>} />
+        <Route path="/admin/menus" element={<AdminGuard><AdminMenus /></AdminGuard>} />
+        <Route path="/admin/settings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
+
+        {/* MAX版追加ページ */}
+        <Route path="/admin/analytics" element={<AdminGuard><AdminAnalytics /></AdminGuard>} />
+        <Route path="/admin/lp-contents" element={<AdminGuard><AdminLpContents /></AdminGuard>} />
 
         {/* フォールバック */}
         <Route path="*" element={<Navigate to="/propose" replace />} />

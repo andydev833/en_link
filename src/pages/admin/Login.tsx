@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSettingsStore } from '../../store/settingsStore';
+import { useAuthStore } from '../../store/authStore';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { adminLogin } = useSettingsStore();
+  const { adminLogin } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = adminLogin(email, password);
+    setLoading(true);
+    const ok = await adminLogin(email, password);
+    setLoading(false);
     if (ok) {
       navigate('/admin/dashboard');
     } else {
@@ -89,8 +92,9 @@ export default function AdminLogin() {
             type="submit"
             className="btn btn-primary"
             style={{ width: '100%', marginBottom: '1rem' }}
+            disabled={loading}
           >
-            ログイン
+            {loading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
 

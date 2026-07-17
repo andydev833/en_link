@@ -1,5 +1,5 @@
 // ============================================================
-// 型定義 — En Link
+// 型定義 — En Link MAX版
 // ============================================================
 
 export type PartnerType = 'individual' | 'business';
@@ -11,8 +11,10 @@ export type ReferralStatus =
   | 'scheduling'
   | 'scheduled'
   | 'consulted'
-  | 'paid'
-  | 'approved'
+  | 'proposed'      // 提案/見積提示済み
+  | 'contracted'    // 成約/決済確認済み
+  | 'paid'          // 旧互換
+  | 'approved'      // 旧互換
   | 'reward_confirmed'
   | 'reward_paid'
   | 'lost'
@@ -39,38 +41,56 @@ export type ExcludeReason =
   | 'fraud_suspected'
   | 'other';
 
+export type IntroductionChannel = 'store' | 'sns' | 'line' | 'existing_customer' | 'business_partner' | 'other';
+
 // ============================================================
-// Partner（紹介者）
+// Partner（紹介者）— MAX版
 // ============================================================
 export interface Partner {
   id: string;
-  partnerType: PartnerType;
+  partnerType?: PartnerType;
   name: string;
   companyName?: string;
   email: string;
   phone: string;
   area: string;
   businessCategory?: string;
+  businessType?: string;        // 業種
   customerSegment?: string;
+  mainArea?: string;            // 主な紹介エリア
+  introductionChannels?: IntroductionChannel[]; // 紹介チャネル
+  websiteUrl?: string;
+  instagramAccount?: string;
   status: PartnerStatus;
   referralCode?: string;
   createdAt: string;
+  updatedAt?: string;
   approvedAt?: string;
   rejectedAt?: string;
   suspendedAt?: string;
   memo?: string;
-  passwordHash: string; // MVP: plain text
   notes?: string;
+  passwordHash: string;
+  // 同意フラグ
+  agreedTerms?: boolean;
+  agreedAdPolicy?: boolean;
+  agreedAntiSocial?: boolean;
 }
 
+// ============================================================
+// PartnerBankAccount — MAX版（要件定義書 14.3）
+// ============================================================
 export interface PartnerBankAccount {
-  id: string;
+  id?: string;
   partnerId: string;
   bankName: string;
+  bankCode?: string;
   branchName: string;
+  branchCode?: string;
   accountType: AccountType;
   accountNumber: string;
   accountHolder: string;
+  accountHolderKana?: string;
   invoiceRegistrationNumber?: string;
   needsInvoice?: boolean;
   createdAt: string;
@@ -78,7 +98,7 @@ export interface PartnerBankAccount {
 }
 
 // ============================================================
-// Menu（紹介対象メニュー）
+// Menu（紹介対象メニュー）— MAX版
 // ============================================================
 export interface Menu {
   id: string;
@@ -91,18 +111,19 @@ export interface Menu {
   fixedRewardAmount?: number;
   percentageRate?: number;
   consultationFee: number;
-  consultationFeeEnabled: boolean;
-  consultationFeeCreditable: boolean;
+  consultationFeeEnabled: boolean;       // isPaidConsultation
+  consultationFeeCreditable: boolean;   // isConsultationFeeDeductible
+  isRewardTarget?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 // ============================================================
-// Referral（紹介案件）
+// Referral（紹介案件）— MAX版
 // ============================================================
 export interface Referral {
   id: string;
-  partnerId?: string; // undefined = direct (no referral)
+  partnerId?: string;
   menuId: string;
   customerName: string;
   customerEmail: string;
@@ -114,6 +135,7 @@ export interface Referral {
   consultationPreferredDate1?: string;
   consultationPreferredDate2?: string;
   consultationContent?: string;
+  inquiryMessage?: string;
   status: ReferralStatus;
   contractAmount?: number;
   rewardAmount?: number;
@@ -126,6 +148,14 @@ export interface Referral {
   paidAt?: string;
   excludeReason?: ExcludeReason;
   adminMemo?: string;
+  // UTM/流入元
+  referralCode?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  referrer?: string;
+  // Googleカレンダー
+  calendarEventId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,6 +186,11 @@ export interface ReferralClick {
   partnerId: string;
   menuId: string;
   referralCode: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  referrer?: string;
+  deviceType?: string;
   clickedAt: string;
 }
 
@@ -172,7 +207,7 @@ export interface Settings {
 }
 
 // ============================================================
-// Auth
+// Auth（後方互換）
 // ============================================================
 export interface AuthState {
   adminLoggedIn: boolean;
