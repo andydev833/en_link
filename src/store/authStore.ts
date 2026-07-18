@@ -65,12 +65,19 @@ export const useAuthStore = create<AuthState>()(
           return false;
         }
 
+        // デバッグログ
+        console.log('[authStore] isGasConfigured', isGasConfigured());
         const res = await callGas<{ token: string; userId: string }>('loginAdmin', { email, password });
-        if (res.success && res.data) {
+        console.log('[authStore] callGas response', res);
+        // GAS の返却形式は { ok:true, data:{...} }、{ success:true, data:{...} }、またはデータだけの文字列（例: トークン）になることがあります
+        const success = (res as any).ok ?? (res as any).success ?? !!((res as any).data?.token);
+        if (success && (res as any).data) {
+          const data = (res as any).data;
           const session: AuthSession = {
-            userId: res.data.userId,
+            // `userId` が存在しない場合は token を userId とみなす（ダミーデータ対応）
+            userId: data.userId ?? data.token,
             role: 'admin',
-            token: res.data.token,
+            token: data.token,
           };
           set({ isAdminLoggedIn: true, adminSession: session });
           return true;

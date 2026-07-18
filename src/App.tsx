@@ -37,8 +37,9 @@ import AdminLpContents from './pages/admin/LpContents';
 // 認証ガード
 // ============================================================
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { isAdminLoggedIn } = useAuthStore();
-  if (!isAdminLoggedIn) return <Navigate to="/admin/login" replace />;
+  const { isAdminLoggedIn, adminSession } = useAuthStore();
+  // Use session presence as fallback if persisted state not yet reflected
+  if (!isAdminLoggedIn && !adminSession) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
 

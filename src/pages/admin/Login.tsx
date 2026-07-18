@@ -1,26 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { adminLogin } = useAuthStore();
+  const { adminLogin, isAdminLoggedIn } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Navigate to dashboard when login state becomes true
+  useEffect(() => {
+    if (isAdminLoggedIn) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [isAdminLoggedIn, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+    console.log('Submitting admin login', { email, password });
     const ok = await adminLogin(email, password);
     setLoading(false);
+    console.log('adminLogin returned', ok);
+    // Log current auth state
+    const authState = useAuthStore.getState();
+    console.log('Auth state after login', authState);
     if (ok) {
-      navigate('/admin/dashboard');
+      // ログイン成功: ダッシュボードへ遷移
+      navigate('/admin/dashboard', { replace: true });
     } else {
-      navigate('/admin/dashboard');
-      // setError('メールアドレスまたはパスワードが正しくありません');
+      // ログイン失敗: エラーメッセージを表示
+      setError('メールアドレスまたはパスワードが正しくありません');
     }
   };
 
