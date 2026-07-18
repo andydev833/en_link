@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePartnerStore } from '../../store/partnerStore';
 import { useReferralStore } from '../../store/referralStore';
@@ -7,8 +8,13 @@ import { Users, FileText, DollarSign, AlertCircle, Clock } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { partners } = usePartnerStore();
-  const { referrals } = useReferralStore();
+  const { partners, fetchPartners } = usePartnerStore();
+  const { referrals, fetchReferrals } = useReferralStore();
+
+  useEffect(() => {
+    fetchPartners();
+    fetchReferrals();
+  }, []);
 
   const now = new Date();
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
