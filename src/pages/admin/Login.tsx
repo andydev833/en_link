@@ -1,23 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+// import { useAuthStore } from '../../store/authStore';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { adminLogin } = useAuthStore();
+  // const { adminLogin } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     if (email === 'admin@ueji.jp' && password === 'admin1234') {
       navigate('/admin/dashboard');
     } else {
       setError('メールアドレスまたはパスワードが正しくありません');
     }
-    // e.preventDefault();
-    // setLoading(true);
+    setLoading(false);
+
     // const ok = await adminLogin(email, password);
     // setLoading(false);
     // if (ok) {
